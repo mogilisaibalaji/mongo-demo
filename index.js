@@ -1,32 +1,85 @@
 const express = require("express");
-const app = express();
-
+const { UserModel, TodoModel } = require("./db");
+const { auth, JWT_SECRET } = require("./auth");
+const jwt = require("jsonwebtoken");
 const mongoose = require("mongoose");
 
-const {UserModel} = require("./db");
+mongoose.connect ("mongodb+srv://saibalajimogili_db_user:admin123@cluster123.5cb5zgu.mongodb.net/Todo");
+
+const app = express();
 app.use(express.json());
 
-mongoose.connect ("mongodb+srv://saibalajimogili_db_user:admin123@cluster123.5cb5zgu.mongodb.net/practice");
-
-app.post("/add",async function(req,res){
+app.post("/signup", async function(req, res) {
+    const email = req.body.email;
+    const password = req.body.password;
     const name = req.body.name;
-    const age = req.body.age;
-    const phone = req.body.phone;
 
-    const newUser = await UserModel.create({
-        name,
-        age,
-        phone
+    await UserModel.create({
+        email: email,
+        password: password,
+        name: name
     });
-   
+    
+    res.json({
+        message: "You are signed up"
+    })
+});
+
+
+app.post("/signin", async function(req, res) {
+    const email = req.body.email;
+    const password = req.body.password;
+
+    const response = await UserModel.findOne({
+        email: email,
+        password: password,
+    });
+
+    if (response) {
+        const token = jwt.sign({
+            id: response._id.toString()
+        }, JWT_SECRET);
+
+        res.json({
+            token
+        })
+    } else {
+        res.status(403).json({
+            message: "Incorrect creds"
+        })
+    }
+});
+
+
+app.post("/todo", auth, async function(req, res) {
+    const userId = req.userId;
+    const title = req.body.title;
+    const done = req.body.done;
+
+    await TodoModel.create({
+        userId,
+        title,
+        done
+    });
 
     res.json({
-        Message:"The new user is added",
-        user:newUser
+        message: "Todo created"
+    })
+});
+
+
+app.get("/todos", auth, async function(req, res) {
+    const userId = req.userId;
+
+    const todos = await TodoModel.find({
+        userId
     });
 
-})
+    res.json({
+        todos
+    })
+});
 
-app.listen(3000,()=>{
-    console.log("The serever is running in the port 3000");
+app.listen(3000, ()=>{
+    console.log("The server is running in the port 3000")
 });
